@@ -2,7 +2,7 @@
 
 将 Minecraft 整合包的 FTB Quests 任务文本自动翻译为简体中文，支持多种翻译引擎。
 
-> 本项目修改自 [jerrita](https://github.com/jerrita) 的原始代码，在此基础上增加了 DeepSeek / Google / Baidu API 支持、1.21.1+ 版本适配、翻译重试机制等功能。
+> 本项目代码主要由 AI 生成，修改自 [jerrita](https://github.com/jerrita) 的原始代码。
 
 ## 特性
 
@@ -90,7 +90,3 @@ python main_1.21.1.py
 ```
 pip install -r requirements.txt
 ```
-
-## 致谢
-
-原始代码作者 [jerrita](https://github.com/jerrita)，本项目在其基础上持续增加新功能和版本适配。
