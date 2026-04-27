@@ -6,7 +6,6 @@
 
 ## 特性
 
-- 硬编码翻译写入 .snbt 文件，无需 i18n 资源包
 - 支持 **OpenAI / DeepSeek / Google / Baidu** 四种翻译 API
 - DeepSeek 翻译器短文本用 flash 模型、长文本用 reasoner 模型，兼顾速度与质量
 - 翻译失败自动重试，内容过滤场景优雅降级返回原文
