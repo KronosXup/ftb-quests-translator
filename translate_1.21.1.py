@@ -2,8 +2,6 @@ import asyncio
 import json
 import re
 import ftb_snbt_lib as slib
-from priv import deepseek_base_url, deepseek_api_key
-from translator.deepseek import DeepSeekTranslator
 
 # ========== 配置 ==========
 INPUT_FILE = "en_us.snbt"
@@ -14,19 +12,49 @@ DST = "zh-CN"
 DEBUG = True
 MERGE_CONSECUTIVE_STRINGS = True
 THINK_THRESHOLD = 100
+
+# 翻译器选择: "deepseek" | "openai" | "google" | "baidu"
+TRANSLATOR_TYPE = "deepseek"
 # =========================
 
-translator = DeepSeekTranslator(
-    base_url=deepseek_base_url,
-    api_key=deepseek_api_key,
-    fast_model="deepseek-v4-flash",
-    reasoner_model="deepseek-reasoner",
-    modpack=MODPACK_NAME,
-    think_threshold=THINK_THRESHOLD
-)
+
+def create_translator():
+    if TRANSLATOR_TYPE == "deepseek":
+        from priv import deepseek_base_url, deepseek_api_key
+        from translator.deepseek import DeepSeekTranslator
+        return DeepSeekTranslator(
+            base_url=deepseek_base_url,
+            api_key=deepseek_api_key,
+            fast_model="deepseek-v4-flash",
+            reasoner_model="deepseek-reasoner",
+            modpack=MODPACK_NAME,
+            think_threshold=THINK_THRESHOLD
+        )
+    elif TRANSLATOR_TYPE == "openai":
+        from priv import base_url, api_key
+        from translator.openai import OpenAITranslator
+        return OpenAITranslator(
+            base_url=base_url,
+            api_key=api_key,
+            modpack=MODPACK_NAME
+        )
+    elif TRANSLATOR_TYPE == "google":
+        from translator.google import GoogleTranslator
+        return GoogleTranslator()
+    elif TRANSLATOR_TYPE == "baidu":
+        from priv import appid, apikey
+        from translator.baidu import BaiduTranslator
+        return BaiduTranslator(appid, apikey)
+    else:
+        raise ValueError(f"未知翻译器类型: {TRANSLATOR_TYPE}，可选: deepseek, openai, google, baidu")
+
+
+translator = create_translator()
+_is_async = asyncio.iscoroutinefunction(translator.translate)
 
 cache = {}
 errors = []
+
 
 # ---------- 辅助函数 ----------
 def should_translate(text: str) -> bool:
@@ -42,13 +70,17 @@ def should_translate(text: str) -> bool:
         return False
     return any(c.isalpha() for c in text)
 
+
 async def translate_text(text: str, path: str = "") -> str:
     if not should_translate(text):
         return text
     if text in cache:
         return cache[text]
     try:
-        translated = await translator.translate(text, src=SRC, dst=DST)
+        if _is_async:
+            translated = await translator.translate(text, src=SRC, dst=DST)
+        else:
+            translated = await asyncio.to_thread(translator.translate, text, SRC, DST)
         cache[text] = translated
         if DEBUG:
             print(f'✅ 翻译成功: {text[:50]}... -> {translated[:50]}...')
@@ -61,6 +93,7 @@ async def translate_text(text: str, path: str = "") -> str:
         })
         print(f"❌ 失败 {path}: {str(e)[:100]}")
         return text
+
 
 async def translate_component(obj, path: str = ""):
     """递归翻译 JSON 文本组件（支持 list/dict）"""
@@ -77,12 +110,13 @@ async def translate_component(obj, path: str = ""):
                 new[k] = await translate_component(v, f"{path}.{k}")
             else:
                 if isinstance(v, str):
-                    new[k] = v   # 不翻译非 text 字段
+                    new[k] = v
                 else:
                     new[k] = await translate_component(v, f"{path}.{k}")
         return new
     else:
         return obj
+
 
 def merge_strings_in_list(lst):
     """合并列表中的连续纯字符串（保留空字符串）"""
@@ -108,13 +142,14 @@ def merge_strings_in_list(lst):
         new_list.append("\n".join(buffer))
     return new_list
 
+
 async def process_value(tag, path: str = ""):
     """
     递归翻译 slib Tag 对象，返回翻译后的 tag。
     slib.String 继承自 str（不可变），所以需要返回新对象替换父容器中的旧值。
     """
     if isinstance(tag, slib.String):
-        original = tag  # slib.String 本身就是字符串
+        original = tag
         stripped = original.strip()
         if stripped.startswith(('[', '{')):
             try:
@@ -127,7 +162,6 @@ async def process_value(tag, path: str = ""):
         else:
             return slib.String(await translate_text(original, path))
     elif isinstance(tag, slib.List):
-        # 先合并连续字符串（可选）
         if MERGE_CONSECUTIVE_STRINGS:
             merged = merge_strings_in_list(list(tag))
             tag.clear()
@@ -136,7 +170,6 @@ async def process_value(tag, path: str = ""):
                     tag.append(slib.String(item))
                 else:
                     tag.append(item)
-        # 递归处理每个元素
         for idx, item in enumerate(tag):
             new_path = f"{path}[{idx}]"
             tag[idx] = await process_value(item, new_path)
@@ -146,12 +179,12 @@ async def process_value(tag, path: str = ""):
             new_path = f"{path}.{key}" if path else key
             tag[key] = await process_value(sub_tag, new_path)
         return tag
-    # 其他类型（数字、布尔等）原样返回
     return tag
+
 
 async def main():
     global errors
-    print(f"加载文件: {INPUT_FILE}")
+    print(f"翻译器: {TRANSLATOR_TYPE.upper()} | 加载文件: {INPUT_FILE}")
     try:
         with open(INPUT_FILE, 'r', encoding='utf-8') as f:
             data = slib.load(f)
@@ -182,7 +215,12 @@ async def main():
     else:
         print("✅ 全部完成，无错误")
 
-    await translator.close()
+    # 关闭翻译器（仅异步客户端需要）
+    if hasattr(translator, 'close'):
+        result = translator.close()
+        if asyncio.iscoroutine(result):
+            await result
+
 
 if __name__ == "__main__":
     asyncio.run(main())
