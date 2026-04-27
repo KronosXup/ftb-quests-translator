@@ -33,7 +33,7 @@
 # DeepSeek 的 API 完全兼容 OpenAI 接口，改 base_url 和 model 即可切换
 base_url = 'https://api.openai.com/v1'     # 或用 https://api.deepseek.com/v1
 api_key = 'sk-xxxxxxxxxxxxxxxx'
-model = 'gpt-4o-mini'                      # 可选，默认 gpt-4o-mini；DeepSeek 用 deepseek-chat
+model = 'gpt-4o-mini'                      # 可选，默认 gpt-4o-mini；DeepSeek 用 deepseek-v4-flash
 
 # DeepSeek 增强版（仅 main_1.21.1.py，支持 flash/reasoner 双模型分流）
 deepseek_base_url = 'https://api.deepseek.com/v1'
