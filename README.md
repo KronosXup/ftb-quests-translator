@@ -18,7 +18,7 @@
 | 脚本 | 适用版本 | 文件格式 |
 |------|----------|----------|
 | `main.py` | 1.16 ~ 1.20.x | `chapters/` 目录，多个 .snbt |
-| `translate_1.21.1.py` | 1.21.1+ | 单个 `en_us.snbt` 文件 |
+| `main_1.21.1.py` | 1.21.1+ | 单个 `en_us.snbt` 文件 |
 
 > 1.21.1 起 FTB Quests 的存储格式从 `chapters/` 多文件目录变更为单个语言文件，旧版脚本不适用于新版。
 
@@ -29,19 +29,19 @@
 新建 `priv.py`，按你使用的翻译引擎填入对应配置：
 
 ```python
-# OpenAI（main.py + translate_1.21.1.py 通用）
+# OpenAI（main.py + main_1.21.1.py 通用）
 base_url = 'https://api.openai.com/v1'
 api_key = 'sk-xxxxxxxxxxxxxxxx'
 
-# DeepSeek（仅 translate_1.21.1.py）
+# DeepSeek（仅 main_1.21.1.py）
 deepseek_base_url = 'https://api.deepseek.com/v1'
 deepseek_api_key = 'sk-xxxxxxxxxxxxxxxx'
 
-# Baidu（main.py + translate_1.21.1.py 通用）
+# Baidu（main.py + main_1.21.1.py 通用）
 appid = 'xxxxxxxx'
 apikey = 'xxxxxxxx'
 
-# Google 翻译无需密钥（仅 translate_1.21.1.py）
+# Google 翻译无需密钥（仅 main_1.21.1.py）
 # 不需要在 priv.py 中配置任何内容，但需确保网络能访问 Google
 ```
 
@@ -61,17 +61,17 @@ python main.py
 **1.21.1+ 版本：**
 
 ```
-python translate_1.21.1.py
+python main_1.21.1.py
 ```
 
 1. 将整合包中的 `en_us.snbt` 放到项目根目录
-2. 打开 `translate_1.21.1.py`，修改顶部的 `TRANSLATOR_TYPE` 选择引擎（`"deepseek"` / `"openai"` / `"google"` / `"baidu"`）
-3. 运行 `python translate_1.21.1.py`
+2. 打开 `main_1.21.1.py`，修改顶部的 `TRANSLATOR_TYPE` 选择引擎（`"deepseek"` / `"openai"` / `"google"` / `"baidu"`）
+3. 运行 `python main_1.21.1.py`
 4. 将输出的 `zh_cn.snbt` 丢回整合包
 
 ### 3. 新版可调参数
 
-`translate_1.21.1.py` 顶部配置区：
+`main_1.21.1.py` 顶部配置区：
 
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
