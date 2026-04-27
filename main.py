@@ -12,8 +12,8 @@ out = 'out_chapters'
 dual_lang = False  # 是否启用双语
 debug = True
 
-modpack = slib.load(
-    open('./quests/data.snbt', 'r', encoding='utf-8'))['title']
+data = slib.load(open('./quests/data.snbt', 'r', encoding='utf-8'))
+modpack = data.get('title', 'Unknown Modpack')   # 如果没有 title 则用默认值
 print('Modpack:', modpack)
 
 client = OpenAITranslator(

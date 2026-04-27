@@ -1,3 +1,5 @@
+import asyncio
+import re
 from openai import AsyncOpenAI
 
 from translator import Translator
@@ -5,18 +7,7 @@ from translator import Translator
 
 class OpenAITranslator(Translator):
     def __init__(self, base_url, api_key, model='gpt-4o-mini', modpack='Modpack'):
-        """
-        初始化 OpenAI 翻译器
-
-        Args:
-            base_url (str): OpenAI API 的基础 URL
-            token (str): OpenAI API 令牌
-            model (str): 使用的模型名称，默认为 'gpt-4o-mini'
-        """
-        self.client = AsyncOpenAI(
-            base_url=base_url,
-            api_key=api_key
-        )
+        self.client = AsyncOpenAI(base_url=base_url, api_key=api_key)
         self.model = model
         self.modpack = modpack
 
@@ -24,60 +15,58 @@ class OpenAITranslator(Translator):
         self.modpack = modpack
 
     async def translate(self, query: str, src='auto', dst='zh-CN') -> str:
-        """
-        使用 OpenAI 模型进行翻译
+        # 1. 跳过纯颜色代码片段（无字母）
+        if any(c in query for c in ['&', '§']):
+            clean = re.sub(r'[&§][0-9a-fklmnor]', '', query).strip()
+            if not any(c.isalpha() for c in clean):
+                print(f"⏭️ 跳过纯颜色代码短文本: {query[:60]}")
+                return query
 
-        Args:
-            query (str): 要翻译的文本
-            src (str): 源语言，默认为 'auto'
-            dst (str): 目标语言，默认为 'zh-CN'
-
-        Returns:
-            str: 翻译后的文本
-        """
-        if query in ['I', 'i']:
+        # 2. 常见占位符直接返回
+        if query in ['I', 'i', 'II', 'III', 'IV', 'V']:
             return query
 
+        # 3. 构建翻译提示词
         prompt = ' '.join([
-            f"Please translate the following text to {dst}.",
-            f"This text is from a minecraft FTB Quests' title/description, with modpack name `{self.modpack}`.",
-            f"Handle the tag syntax of Minecraft carefully. Do not translate roman numeral such as `I`"
-            f"Only return the translated text without any explanation:\n\n{query}"
+            f"Please translate the following Minecraft-related text to {dst}.",
+            f"This text is from an FTB Quests mod for Minecraft. The modpack name is `{self.modpack}`.",
+            f"Preserve Minecraft-specific terms (e.g., 'Redstone' -> '红石', 'Netherite' -> '下界合金').",
+            f"Do NOT translate item IDs, color codes (§a, &l), or roman numerals.",
+            f"Handle JSON text components properly: only translate the 'text' field; keep 'color', 'clickEvent', 'hoverEvent' unchanged.",
+            f"Return only the translated text without any explanation.\n\n{query}"
         ])
 
-        try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.2,
-                max_tokens=4000
-            )
+        max_retries = 3
+        base_delay = 2
 
-            # 检查响应类型并提取翻译结果
-            if hasattr(response, 'choices') and len(response.choices) > 0:
-                translation = response.choices[0].message.content.strip()
-                return translation
-            else:
-                # 如果响应格式不正确，记录响应内容
-                print(f"Unexpected response format: {response}")
-                raise Exception(f"Unexpected response format: {type(response)}")
-
-        except Exception as e:
-            # 如果翻译失败，抛出异常或返回原文
-            print(f"Translation error details: {e}")
-            print(f"Query was: {query}")
-            raise Exception(f"OpenAI translation failed: {str(e)}")
+        for attempt in range(max_retries):
+            try:
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.2,
+                    max_tokens=1024
+                )
+                if response.choices and len(response.choices) > 0:
+                    translation = response.choices[0].message.content.strip()
+                    return translation
+                else:
+                    raise Exception("Unexpected response format")
+            except Exception as e:
+                error_msg = str(e)
+                retryable = any(code in error_msg for code in ['400', '429', '500', '502', '503', 'content_filter'])
+                if retryable and attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    print(f"⚠️ 翻译出错 ({error_msg[:100]}), {delay} 秒后重试 (尝试 {attempt+1}/{max_retries})... 原文: {query[:50]}")
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    print(f"❌ 翻译失败 (最终): {error_msg} | 原文: {query[:100]}")
+                    if 'content_filter' in error_msg:
+                        print(f"↩️ 因内容过滤返回原文: {query}")
+                        return query
+                    raise Exception(f"OpenAI translation failed: {error_msg}")
+        return query
 
     async def close(self):
-        """关闭异步客户端连接"""
         await self.client.close()
-
-
-if __name__ == '__main__':
-    # 示例用法
-    # translator = OpenAITranslator('https://api.openai.com/v1', 'your-api-key')
-    # result = translator.translate('Hello world!')
-    # print(result)
-    pass
