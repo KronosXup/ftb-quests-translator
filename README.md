@@ -15,10 +15,10 @@
 
 ## 版本选择
 
-| 脚本 | 适用版本 | 文件格式 |
-|------|----------|----------|
-| `main.py` | 1.16 ~ 1.20.x | `chapters/` 目录，多个 .snbt |
-| `main_1.21.1.py` | 1.21.1+ | 单个 `en_us.snbt` 文件 |
+| 脚本 | 适用版本 | 文件格式 | 支持 API |
+|------|----------|----------|----------|
+| `main.py` | 1.16 ~ 1.20.x | `chapters/` 目录，多个 .snbt | OpenAI 及兼容接口（含 DeepSeek）/ Baidu |
+| `main_1.21.1.py` | 1.21.1+ | 单个 `en_us.snbt` 文件 | DeepSeek / OpenAI / Google / Baidu |
 
 > 1.21.1 起 FTB Quests 的存储格式从 `chapters/` 多文件目录变更为单个语言文件，旧版脚本不适用于新版。
 
@@ -29,11 +29,13 @@
 新建 `priv.py`，按你使用的翻译引擎填入对应配置：
 
 ```python
-# OpenAI（main.py + main_1.21.1.py 通用）
-base_url = 'https://api.openai.com/v1'
+# OpenAI / DeepSeek / 其他兼容 API（main.py + main_1.21.1.py 通用）
+# DeepSeek 的 API 完全兼容 OpenAI 接口，改 base_url 和 model 即可切换
+base_url = 'https://api.openai.com/v1'     # 或用 https://api.deepseek.com/v1
 api_key = 'sk-xxxxxxxxxxxxxxxx'
+model = 'gpt-4o-mini'                      # 可选，默认 gpt-4o-mini；DeepSeek 用 deepseek-chat
 
-# DeepSeek（仅 main_1.21.1.py）
+# DeepSeek 增强版（仅 main_1.21.1.py，支持 flash/reasoner 双模型分流）
 deepseek_base_url = 'https://api.deepseek.com/v1'
 deepseek_api_key = 'sk-xxxxxxxxxxxxxxxx'
 

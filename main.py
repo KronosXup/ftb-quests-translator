@@ -4,6 +4,12 @@ import asyncio
 import ftb_snbt_lib as slib
 
 from priv import base_url, api_key
+
+try:
+    from priv import model
+except ImportError:
+    model = 'gpt-4o-mini'
+
 from translator.openai import OpenAITranslator
 
 base = './quests/chapters'
@@ -19,6 +25,7 @@ print('Modpack:', modpack)
 client = OpenAITranslator(
     base_url=base_url,
     api_key=api_key,
+    model=model,
     modpack=modpack
 )
 
