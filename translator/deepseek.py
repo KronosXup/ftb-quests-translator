@@ -3,6 +3,7 @@ import re
 import time
 from openai import AsyncOpenAI
 from translator import Translator
+from translator.mc_terms import build_glossary_prompt
 
 
 class DeepSeekTranslator(Translator):
@@ -82,19 +83,19 @@ class DeepSeekTranslator(Translator):
         model = self._choose_model(query)
         start_time = time.time()
 
-        # 强化了 Minecraft 模组语言环境提示
+        glossary = build_glossary_prompt()
         base_system_prompt = (
             "You are a professional translator specializing in Minecraft mod content.\n"
             "You are translating FTB Quests text from English to Simplified Chinese.\n"
             "The text belongs to a Minecraft modpack environment, containing item IDs, block names, entity names, and mod-specific terminology.\n"
+            f"{glossary}\n"
             "Rules:\n"
             "1. Keep item IDs (e.g., 'minecraft:stone', 'kubejs:custom_item') unchanged.\n"
             "2. Keep color codes (e.g., §a, &l, &6) unchanged.\n"
             "3. Keep Roman numerals (I, II, III) unchanged.\n"
             "4. For JSON text components, translate ONLY the 'text' field; preserve all other fields like 'color', 'clickEvent', 'hoverEvent' exactly as they are.\n"
             "5. Output the COMPLETE translation. Do NOT use '...' or any ellipsis. Even very short text must be fully translated.\n"
-            "6. Do not add any explanations, notes, or extra markup. Output only the translated text.\n"
-            "Maintain Minecraft community conventions for common terms (e.g., 'Iron Ore' -> '铁矿石', 'Creeper' -> '苦力怕', 'Nether' -> '下界')."
+            "6. Do not add any explanations, notes, or extra markup. Output only the translated text."
         )
         user_prompt = f"Translate to Chinese: {query}"
         max_tokens = self._dynamic_max_tokens(query, model)

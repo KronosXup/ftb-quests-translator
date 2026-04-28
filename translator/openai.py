@@ -3,6 +3,7 @@ import re
 from openai import AsyncOpenAI
 
 from translator import Translator
+from translator.mc_terms import build_glossary_prompt
 
 
 class OpenAITranslator(Translator):
@@ -27,13 +28,15 @@ class OpenAITranslator(Translator):
             return query
 
         # 3. 构建翻译提示词
+        glossary = build_glossary_prompt()
         prompt = ' '.join([
             f"Please translate the following Minecraft-related text to {dst}.",
             f"This text is from an FTB Quests mod for Minecraft. The modpack name is `{self.modpack}`.",
-            f"Preserve Minecraft-specific terms (e.g., 'Redstone' -> '红石', 'Netherite' -> '下界合金').",
             f"Do NOT translate item IDs, color codes (§a, &l), or roman numerals.",
             f"Handle JSON text components properly: only translate the 'text' field; keep 'color', 'clickEvent', 'hoverEvent' unchanged.",
-            f"Return only the translated text without any explanation.\n\n{query}"
+            f"Return only the translated text without any explanation.\n\n",
+            glossary,
+            f"\n\nText to translate:\n{query}"
         ])
 
         max_retries = 3
