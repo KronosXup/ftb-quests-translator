@@ -695,16 +695,77 @@ TERMS = {
     "Plugin": "插件",
 }
 
-# 生成提示词中使用的术语表文本（限制长度避免 prompt 爆炸）
+def parse_markdown_glossary(path: str) -> dict:
+    """
+    解析 translation_glossary.md，提取所有英文→中文术语对。
+
+    支持三种表格格式：
+      | English | 中文 | 备注 |       (3 列，取 col 0→1)
+      | English | 中文 |              (2 列)
+      | 英文 | 错误译法 | 正确译法 | 说明 | (4 列「翻译陷阱」，取 col 0→2)
+    跳过无管道符的行、表头分隔行 (---)。
+    """
+    import re
+    import os
+    terms = {}
+    if not os.path.exists(path):
+        return terms
+
+    with open(path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped.startswith('|'):
+            continue
+        if re.match(r'^\|[\s\-:]+\|', stripped):  # 分隔行
+            continue
+
+        cols = [c.strip() for c in stripped.split('|')]
+        # 去掉首尾空元素
+        cols = [c for c in cols if c]
+
+        if len(cols) < 2:
+            continue
+
+        en = cols[0]
+        # 跳过标题行 / 纯中文的表头
+        if en in ('English', '英文', '代码'):
+            continue
+
+        # 4 列陷阱表：英文 | 错误译法 | 正确译法 | 说明  → 取 col 0→2
+        # 2-3 列常规表：English | 中文 [| 备注]          → 取 col 0→1
+        if len(cols) >= 4:
+            zh = cols[2]
+        else:
+            zh = cols[1]
+
+        # 清理 null/空值、纯标点
+        if zh and zh.lower() != 'null' and zh != '-' and en:
+            terms[en] = zh
+
+    return terms
+
+
+# 合并硬编码术语 + Markdown 术语（Markdown 优先级更高）
+def _load_merged_terms():
+    import os
+    merged = dict(TERMS)
+    md_path = os.path.join(os.path.dirname(__file__), '..', 'translation_glossary.md')
+    md_terms = parse_markdown_glossary(md_path)
+    merged.update(md_terms)
+    return merged
+
+
+# 生成提示词中使用的术语表文本
 def build_glossary_prompt(max_terms: int = 120) -> str:
     """
-    将术语表转为英文提示词片段。
-    只取 max_terms 个可能产生分歧的关键术语，太长反而影响翻译质量。
+    从硬编码 TERMS + translation_glossary.md 合并术语表，
+    转为英文提示词片段。只取 max_terms 条，避免 prompt 爆炸。
     """
-    # 优先取可能翻译错误的术语 — 这里按字典顺序，实际使用时可调整优先级
-    entries = list(TERMS.items())
+    merged = _load_merged_terms()
+    entries = list(merged.items())
 
-    # 截断到 max_terms
     if len(entries) > max_terms:
         entries = entries[:max_terms]
 
