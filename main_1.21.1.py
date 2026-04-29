@@ -132,6 +132,18 @@ async def translate_component(obj, path: str = ""):
         return obj
 
 
+def _smart_join(fragments):
+    """智能拼接：前一段不以标点结尾则用空格接下一段（断句补全），否则换行"""
+    result = fragments[0].rstrip()
+    for frag in fragments[1:]:
+        frag = frag.rstrip()
+        if result.endswith(('.', '!', '?', '。', '！', '？', ':', '：')):
+            result += '\n' + frag
+        else:
+            result += ' ' + frag
+    return result
+
+
 def merge_strings_in_list(lst):
     """合并列表中的连续纯字符串（保留空字符串）"""
     if not isinstance(lst, list):
@@ -142,18 +154,18 @@ def merge_strings_in_list(lst):
         if isinstance(item, str):
             if item == "":
                 if buffer:
-                    new_list.append("\n".join(buffer))
+                    new_list.append(_smart_join(buffer))
                     buffer = []
                 new_list.append("")
             else:
                 buffer.append(item)
         else:
             if buffer:
-                new_list.append("\n".join(buffer))
+                new_list.append(_smart_join(buffer))
                 buffer = []
             new_list.append(merge_strings_in_list(item))
     if buffer:
-        new_list.append("\n".join(buffer))
+        new_list.append(_smart_join(buffer))
     return new_list
 
 
