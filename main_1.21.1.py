@@ -51,6 +51,20 @@ def create_translator():
 
 translator = create_translator()
 _is_async = asyncio.iscoroutinefunction(translator.translate)
+_has_context_len = hasattr(translator, 'context_len')
+
+
+def _list_text_total(lst) -> int:
+    """估算一个列表中所有文本内容的总长度（用于判断是否需要深度思考）"""
+    total = 0
+    for item in lst:
+        if isinstance(item, str):
+            total += len(item)
+        elif isinstance(item, slib.String):
+            total += len(str(item))
+        elif isinstance(item, slib.Compound) and 'text' in item:
+            total += len(str(item['text']))
+    return total
 
 cache = {}
 errors = []
@@ -170,9 +184,18 @@ async def process_value(tag, path: str = ""):
                     tag.append(slib.String(item))
                 else:
                     tag.append(item)
+        # 计算整段任务文本总长度，设置翻译器上下文
+        prev_context_len = 0
+        if _has_context_len:
+            total_len = _list_text_total(tag)
+            if total_len > THINK_THRESHOLD:
+                prev_context_len = translator.context_len
+                translator.context_len = total_len
         for idx, item in enumerate(tag):
             new_path = f"{path}[{idx}]"
             tag[idx] = await process_value(item, new_path)
+        if _has_context_len and prev_context_len != translator.context_len:
+            translator.context_len = prev_context_len
         return tag
     elif isinstance(tag, slib.Compound):
         for key, sub_tag in tag.items():

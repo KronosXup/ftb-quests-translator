@@ -26,16 +26,18 @@ class DeepSeekTranslator(Translator):
         self.reasoner_model = reasoner_model
         self.modpack = modpack
         self.think_threshold = think_threshold
+        self.context_len = 0  # 外部可设置，表示当前片段所属整体文本的长度
 
     def _choose_model(self, text: str) -> str:
-        """Choose model based on text length and complexity"""
-        if len(text) > self.think_threshold:
+        """Choose model based on text length, complexity, and context length"""
+        effective_len = max(len(text), self.context_len)
+        if effective_len > self.think_threshold:
             return self.reasoner_model
         if len(text.split()) > 20:
             return self.reasoner_model
         if text.strip().startswith(('[', '{')):
             return self.reasoner_model
-        if ('&' in text or '§' in text) and len(text) > 50:
+        if ('&' in text or '§' in text) and effective_len > 50:
             return self.reasoner_model
         return self.fast_model
 
