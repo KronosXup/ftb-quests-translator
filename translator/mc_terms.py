@@ -747,25 +747,34 @@ def parse_markdown_glossary(path: str) -> dict:
     return terms
 
 
-# 合并硬编码术语 + Markdown 术语（Markdown 优先级更高）
-def _load_merged_terms():
+def _load_glossary_path():
     import os
-    merged = dict(TERMS)
-    md_path = os.path.join(os.path.dirname(__file__), '..', 'translation_glossary.md')
-    md_terms = parse_markdown_glossary(md_path)
-    merged.update(md_terms)
+    return os.path.join(os.path.dirname(__file__), '..', 'translation_glossary.md')
+
+
+# 合并术语：Markdown 排在前面（确保不被 max_terms 截断），硬编码兜底
+def _load_merged_terms():
+    md_terms = parse_markdown_glossary(_load_glossary_path())
+    merged = dict(md_terms)       # Markdown 先占位，优先级高
+    for k, v in TERMS.items():
+        if k not in merged:
+            merged[k] = v
     return merged
 
 
 # 生成提示词中使用的术语表文本
 def build_glossary_prompt(max_terms: int = 120) -> str:
     """
-    从硬编码 TERMS + translation_glossary.md 合并术语表，
-    转为英文提示词片段。只取 max_terms 条，避免 prompt 爆炸。
+    Markdown 术语全部保留，剩余配额用硬编码原版术语填补。
     """
+    md_terms = parse_markdown_glossary(_load_glossary_path())
     merged = _load_merged_terms()
-    entries = list(merged.items())
+    hardcoded = [(k, v) for k, v in merged.items() if k not in md_terms]
 
+    entries = list(md_terms.items())
+    remaining = max_terms - len(entries)
+    if remaining > 0:
+        entries += hardcoded[:remaining]
     if len(entries) > max_terms:
         entries = entries[:max_terms]
 
